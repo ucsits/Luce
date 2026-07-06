@@ -8,7 +8,7 @@ import (
 
 func TestGenesis(t *testing.T) {
 	var chain blockchain.Blockchain
-	genesis(&chain)
+	Genesis(&chain)
 
 	if chain.Height() != 1 {
 		t.Fatalf("chain height = %d, want 1", chain.Height())
@@ -37,7 +37,7 @@ func TestGenesis(t *testing.T) {
 
 func TestGenesisBlockIsValid(t *testing.T) {
 	var chain blockchain.Blockchain
-	genesis(&chain)
+	Genesis(&chain)
 
 	if !chain.Validate() {
 		t.Error("genesis chain should be valid")
