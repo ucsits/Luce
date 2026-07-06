@@ -16,7 +16,7 @@ func (c *Blockchain) AppendBlock(author uint64, data string) Block {
 	prevBlockHash := [32]byte{0}
 	height := c.Height()
 	if height > 0 {
-		prevBlockHash = c.GetBlock(height - 2).Hash()
+		prevBlockHash = c.GetBlock(height - 1).Hash()
 	}
 
 	b := NewBlock(height, prevBlockHash, author, data)
