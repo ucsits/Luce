@@ -46,10 +46,13 @@ func (c Blockchain) Validate() bool {
 	return true
 }
 
-func (c Blockchain) Encode() []byte {
+func (c Blockchain) Encode() ([]byte, error) {
 	height := c.Height()
+	if height == 0 {
+		return nil, fmt.Errorf("cannot encode empty chain")
+	}
 	lastBlock := c.GetBlock(height - 1)
 	data := fmt.Sprintf("%dꭣ%x", height, lastBlock.Hash())
 
-	return []byte(data)
+	return []byte(data), nil
 }

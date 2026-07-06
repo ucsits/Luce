@@ -45,43 +45,19 @@ func TestGenesisBlockIsValid(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Dump / Load tests — currently UNTESTABLE due to:
-//
-// Bug 1: Dump calls c.Encode() which panics on empty chain (chain.go:52).
-//
-// Bug 2: Load calls NewBlockFromFile which is broken (block.go:58 — missing &
-//   on Sscanf arguments, log.Fatal instead of error return).
-//
-// Bug 3: Load uses log.Fatal for all errors, making it untestable.
-//
-// Bug 4: Load metadata parsing uses %x Sscanf into a string, which may not
-//   correctly capture a 64-char hex hash string.
-//
-// Fixes needed:
-//   1. Guard Encode() against empty chain
-//   2. Fix NewBlockFromFile Sscanf args (add &)
-//   3. Replace log.Fatal with error returns in Load, Dump, mkluce
-//   4. Verify %x vs %s for hash string parsing in Load metadata
+// Dump / Load tests
 // ---------------------------------------------------------------------------
 
-func TestDumpEmptyChainPanics(t *testing.T) {
+func TestDumpEmptyChainReturnsError(t *testing.T) {
 	var chain blockchain.Blockchain
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Dump() on empty chain should panic, but it did not")
-		} else {
-			t.Logf("Caught expected panic: %v", r)
-		}
-	}()
-	Dump(t.TempDir(), chain)
+	err := Dump(t.TempDir(), chain)
+	if err == nil {
+		t.Error("Dump() on empty chain should return an error, but it did not")
+	}
 }
 
-func TestDumpLoadRoundTripBlockedByNewBlockFromFile(t *testing.T) {
-	// This test documents the expected behavior once all bugs are fixed.
-	// It is skipped because Load → NewBlockFromFile → log.Fatal kills the process.
-	t.Skip("Blocked by bugs in NewBlockFromFile and log.Fatal usage in Load/Dump")
-
+func TestDumpLoadRoundTrip(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	var chain blockchain.Blockchain
@@ -91,10 +67,14 @@ func TestDumpLoadRoundTripBlockedByNewBlockFromFile(t *testing.T) {
 
 	originalHeight := chain.Height()
 
-	Dump(tmpDir, chain)
+	if err := Dump(tmpDir, chain); err != nil {
+		t.Fatalf("Dump returned error: %v", err)
+	}
 
 	var loaded blockchain.Blockchain
-	Load(tmpDir, &loaded)
+	if err := Load(tmpDir, &loaded); err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
 
 	if loaded.Height() != originalHeight {
 		t.Errorf("loaded chain height = %d, want %d", loaded.Height(), originalHeight)
@@ -102,5 +82,17 @@ func TestDumpLoadRoundTripBlockedByNewBlockFromFile(t *testing.T) {
 
 	if !loaded.Validate() {
 		t.Error("loaded chain should be valid")
+	}
+
+	// Verify each block matches
+	for i := uint64(0); i < originalHeight; i++ {
+		original := chain.GetBlock(i)
+		loaded := loaded.GetBlock(i)
+		if original.Hash() != loaded.Hash() {
+			t.Errorf("block %d hash mismatch: got %x, want %x", i, loaded.Hash(), original.Hash())
+		}
+		if original.Data != loaded.Data {
+			t.Errorf("block %d data mismatch: got %q, want %q", i, loaded.Data, original.Data)
+		}
 	}
 }

@@ -25,7 +25,9 @@ func Bootstrap() {
 	dir, _ := os.Getwd()
 	_, err := os.Stat(".luce")
 	if err == nil {
-		Load(dir, &chain)
+		if err := Load(dir, &chain); err != nil {
+			log.Fatalf("loading blockchain: %v", err)
+		}
 	} else {
 		genesis(&chain)
 	}
@@ -37,7 +39,9 @@ func Bootstrap() {
 	for {
 		select {
 		case <-sig:
-			Dump(dir, chain)
+			if err := Dump(dir, chain); err != nil {
+				log.Fatalf("dumping blockchain: %v", err)
+			}
 			return
 		default:
 			time.Sleep(100 * time.Millisecond)

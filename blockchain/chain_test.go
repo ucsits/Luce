@@ -209,23 +209,24 @@ func TestValidateTamperedData(t *testing.T) {
 	}
 }
 
-// Encode() panics on an empty chain because GetBlock(height - 1) underflows uint64 when height = 0.
+// Encode() returns an error on an empty chain because there is no last block to reference.
 func TestEncodeEmptyChain(t *testing.T) {
 	c := Blockchain{}
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Encode() on empty chain should panic, but it did not")
-		}
-	}()
-	c.Encode()
+	_, err := c.Encode()
+	if err == nil {
+		t.Error("Encode() on empty chain should return an error, but it did not")
+	}
 }
 
 func TestEncodeSingleBlockChain(t *testing.T) {
 	c := Blockchain{}
 	c.AppendBlock(0, "genesis")
 
-	encoded := c.Encode()
+	encoded, err := c.Encode()
+	if err != nil {
+		t.Fatalf("Encode() returned error: %v", err)
+	}
 
 	if len(encoded) == 0 {
 		t.Fatal("Encode() returned empty output for single-block chain")
@@ -254,7 +255,10 @@ func TestEncodeMultiBlockChain(t *testing.T) {
 	c.AppendBlock(1, "block 1")
 	c.AppendBlock(2, "block 2")
 
-	encoded := c.Encode()
+	encoded, err := c.Encode()
+	if err != nil {
+		t.Fatalf("Encode() returned error: %v", err)
+	}
 
 	if len(encoded) == 0 {
 		t.Fatal("Encode() returned empty output for multi-block chain")

@@ -138,7 +138,10 @@ func TestNewBlockFromFileRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	decoded := NewBlockFromFile(tmpFile)
+	decoded, err := NewBlockFromFile(tmpFile)
+	if err != nil {
+		t.Fatalf("NewBlockFromFile returned error: %v", err)
+	}
 	if decoded.Hash() != b.Hash() {
 		t.Errorf("round-trip hash mismatch: got %x, want %x", decoded.Hash(), b.Hash())
 	}
