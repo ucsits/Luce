@@ -65,7 +65,7 @@ func NewBlockFromFile(filename string) *Block {
 		log.Fatal(err)
 	}
 
-	dec, err = hex.DecodeString(hashStr)
+	dec, err = hex.DecodeString(prevBlockHashStr)
 	if err == nil && len(dec) == 32 {
 		copy(prevBlockHash[:], dec)
 	} else {
