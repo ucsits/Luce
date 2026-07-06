@@ -128,49 +128,21 @@ func TestFormatVsEncode(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// NewBlockFromFile tests — currently UNTESTABLE due to two bugs:
-//
-// Bug 1: block.go:58 — Sscanf arguments passed by VALUE, not POINTER.
-//   Variables (height, hashStr, author, timestamp, prevBlockHashStr, blockData)
-//   are passed directly instead of (&height, &hashStr, ...). Sscanf cannot
-//   write back, so all values remain zero.
-//
-// Bug 2: block.go:61 — Error swallowed, log.Fatal called on wrong condition.
-//   hex.DecodeString("") succeeds (nil error, len=0). Then len(dec) != 32
-//   triggers log.Fatal(err) where err is nil from hex.DecodeString, not from
-//   the failed Sscanf. This prints "<nil>" and calls os.Exit(1).
-//
-// Both must be fixed before these tests can run:
-//   1. Add & prefix to all Sscanf arguments
-//   2. Check Sscanf error before using scanned values
-//   3. Replace log.Fatal with error returns for testability
-// ---------------------------------------------------------------------------
-
-func TestNewBlockFromFile_BugsDocumented(t *testing.T) {
-	b := NewBlock(0, [32]byte{0}, 7, "test data")
+func TestNewBlockFromFileRoundTrip(t *testing.T) {
+	b := NewBlock(0, [32]byte{0}, 7, "multi word test data")
 	b.Timestamp = 500
 	encoded := b.Encode()
 
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "block")
+	tmpFile := filepath.Join(t.TempDir(), "block")
 	if err := os.WriteFile(tmpFile, encoded, 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Direct call would crash via log.Fatal → os.Exit(1).
-	// Instead, verify the file was written correctly.
-	data, err := os.ReadFile(tmpFile)
-	if err != nil {
-		t.Fatal(err)
+	decoded := NewBlockFromFile(tmpFile)
+	if decoded.Hash() != b.Hash() {
+		t.Errorf("round-trip hash mismatch: got %x, want %x", decoded.Hash(), b.Hash())
 	}
-	if len(data) != len(encoded) {
-		t.Errorf("written file length = %d, want %d", len(data), len(encoded))
+	if decoded.Data != b.Data {
+		t.Errorf("round-trip data mismatch: got %q, want %q", decoded.Data, b.Data)
 	}
-
-	// When NewBlockFromFile is fixed, uncomment:
-	// decoded := NewBlockFromFile(tmpFile)
-	// if decoded.Hash() != b.Hash() { t.Error("round-trip hash mismatch") }
-
-	t.Log("NewBlockFromFile needs fixes: missing & on Sscanf args, log.Fatal → error return")
 }

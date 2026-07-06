@@ -39,21 +39,10 @@ func TestAppendBlockToEmptyChain(t *testing.T) {
 	}
 }
 
-// TestAppendBlockToChainWithOneBlock exposes the AppendBlock bug:
-// when height=1 (one existing block), it computes GetBlock(height-2) = GetBlock(-1)
-// which underflows uint64 and panics with an index out of range.
 func TestAppendBlockToChainWithOneBlock(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("BUG: AppendBlock panicked on second block: %v", r)
-			t.Log("Root cause: chain.go:19 calls GetBlock(height - 2) which underflows uint64 when height=1")
-			t.Log("Fix: change height - 2 to height - 1 (the new block is not in the slice yet)")
-		}
-	}()
-
 	c := Blockchain{}
 	c.AppendBlock(0, "genesis")
-	c.AppendBlock(1, "second block") // ← BUG: panics here
+	c.AppendBlock(1, "second block")
 
 	if c.Height() != 2 {
 		t.Errorf("chain height = %d, want 2", c.Height())
@@ -67,15 +56,9 @@ func TestAppendBlockToChainWithOneBlock(t *testing.T) {
 }
 
 func TestAppendBlockHashLinking(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("BUG: AppendBlock panicked during hash linking test: %v", r)
-		}
-	}()
-
 	c := Blockchain{}
 	c.AppendBlock(0, "block 0")
-	c.AppendBlock(1, "block 1") // ← BUG: panics here (height - 2 underflow)
+	c.AppendBlock(1, "block 1")
 	c.AppendBlock(2, "block 2")
 	c.AppendBlock(3, "block 3")
 
@@ -180,16 +163,9 @@ func TestValidateSingleBlock(t *testing.T) {
 }
 
 func TestValidateValidChain(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("BUG: ValidateValidChain panicked: %v", r)
-			t.Log("Root cause: AppendBlock calls GetBlock(height - 2) instead of GetBlock(height - 1)")
-		}
-	}()
-
 	c := Blockchain{}
 	c.AppendBlock(0, "block 0")
-	c.AppendBlock(1, "block 1") // ← BUG: panics here
+	c.AppendBlock(1, "block 1")
 	c.AppendBlock(2, "block 2")
 
 	if !c.Validate() {
@@ -208,15 +184,9 @@ func TestValidateHeightMismatch(t *testing.T) {
 }
 
 func TestValidateBrokenHashLink(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("BUG: ValidateBrokenHashLink panicked: %v", r)
-		}
-	}()
-
 	c := Blockchain{}
 	c.AppendBlock(0, "block 0")
-	c.AppendBlock(1, "block 1") // ← BUG: panics here
+	c.AppendBlock(1, "block 1")
 
 	block2 := c.GetBlock(1)
 	block2.PrevBlockHash = sha256.Sum256([]byte("wrong"))
@@ -228,15 +198,9 @@ func TestValidateBrokenHashLink(t *testing.T) {
 }
 
 func TestValidateTamperedData(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("BUG: ValidateTamperedData panicked: %v", r)
-		}
-	}()
-
 	c := Blockchain{}
 	c.AppendBlock(0, "genesis data")
-	c.AppendBlock(1, "block 1 data") // ← BUG: panics here
+	c.AppendBlock(1, "block 1 data")
 
 	c.blocks[0].Data = "tampered data"
 
@@ -285,15 +249,9 @@ func TestEncodeSingleBlockChain(t *testing.T) {
 }
 
 func TestEncodeMultiBlockChain(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("BUG: EncodeMultiBlockChain panicked: %v", r)
-		}
-	}()
-
 	c := Blockchain{}
 	c.AppendBlock(0, "block 0")
-	c.AppendBlock(1, "block 1") // ← BUG: panics here
+	c.AppendBlock(1, "block 1")
 	c.AppendBlock(2, "block 2")
 
 	encoded := c.Encode()
