@@ -1,4 +1,4 @@
-package fs
+package fsmgr
 
 import (
 	"encoding/hex"
