@@ -1,6 +1,8 @@
 package blockchain
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Blockchain struct {
 	blocks []*Block
@@ -11,9 +13,13 @@ func (c *Blockchain) PrependBlock(b *Block) {
 }
 
 func (c *Blockchain) AppendBlock(author uint64, data string) Block {
+	prevBlockHash := [32]byte{0}
 	height := c.Height()
-	prevBlock := c.GetBlock(height - 2)
-	b := NewBlock(height, prevBlock.Hash(), author, data)
+	if height > 0 {
+		prevBlockHash = c.GetBlock(height - 2).Hash()
+	}
+
+	b := NewBlock(height, prevBlockHash, author, data)
 	c.blocks = append(c.blocks, b)
 	return *b
 }

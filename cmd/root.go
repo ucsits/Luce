@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/ucsits/Luce/fsmgr"
 )
 
 var rootCmd = &cobra.Command{
@@ -12,7 +13,7 @@ var rootCmd = &cobra.Command{
 	Short: "luce is a blockchain organizational transparency application",
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("luce root command executed. Use --help for options.")
+		fsmgr.Bootstrap()
 	},
 }
 
