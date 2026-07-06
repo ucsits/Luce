@@ -24,6 +24,15 @@ func (c *Blockchain) AppendBlock(author uint64, data string) Block {
 	return *b
 }
 
+func (c *Blockchain) TruncateLast() Block {
+	if len(c.blocks) == 0 {
+		return Block{}
+	}
+	last := *c.blocks[len(c.blocks)-1]
+	c.blocks = c.blocks[:len(c.blocks)-1]
+	return last
+}
+
 func (c Blockchain) GetBlock(idx uint64) Block {
 	return *c.blocks[idx]
 }

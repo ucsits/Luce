@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/ucsits/Luce/blockchain"
+	"github.com/ucsits/Luce/fsmgr"
 )
 
 func newIntegrationServer(t *testing.T) (*Server, *httptest.Server) {
@@ -99,13 +100,15 @@ func TestIntegrationFullFlow(t *testing.T) {
 	}
 }
 
-func TestIntegrationShutdownPersistsChain(t *testing.T) {
+func TestAppendBlock_PersistedChainSurvivesRestart(t *testing.T) {
 	dir := t.TempDir()
-	var chain blockchain.Blockchain
-	fsmgrGenesis(&chain)
+	chain, err := fsmgr.LoadOrCreate(dir)
+	if err != nil {
+		t.Fatalf("load or create: %v", err)
+	}
 	cfg := DefaultConfig()
 	cfg.DataDir = dir
-	s := NewServer(cfg, &chain)
+	s := NewServer(cfg, chain)
 	ts := httptest.NewServer(s.echo)
 	defer ts.Close()
 
@@ -118,22 +121,63 @@ func TestIntegrationShutdownPersistsChain(t *testing.T) {
 		t.Fatalf("shutdown: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(dir, ".luce", "metadata")); err != nil {
-		t.Fatalf("expected metadata file after shutdown: %v", err)
-	}
 	entries, err := os.ReadDir(filepath.Join(dir, ".luce"))
 	if err != nil {
 		t.Fatalf("read .luce: %v", err)
 	}
-	t.Logf(".luce entries after shutdown: %d", len(entries))
 	if len(entries) != 3 {
-		t.Fatalf("expected 3 files (metadata + 2 blocks), got %d", len(entries))
+		t.Fatalf("expected 3 files (metadata + genesis + 1 block), got %d", len(entries))
+	}
+
+	loaded, err := fsmgr.LoadOrCreate(dir)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if loaded.Height() != 2 {
+		t.Fatalf("expected reloaded height 2, got %d", loaded.Height())
+	}
+	if !loaded.Validate() {
+		t.Fatal("reloaded chain should be valid")
 	}
 }
 
-// TestConcurrentAccessNoRace exercises the per-request goroutine model under
-// the race detector. Without the Server mutex around chain access this would
-// either race (flagged by -race) or lose appended blocks.
+func TestAppendBlock_RollsBackOnPersistFailure(t *testing.T) {
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0644); err != nil {
+		t.Fatalf("write blocker: %v", err)
+	}
+
+	var chain blockchain.Blockchain
+	fsmgrGenesis(&chain)
+	cfg := DefaultConfig()
+	cfg.DataDir = blocker
+	s := NewServer(cfg, &chain)
+	ts := httptest.NewServer(s.echo)
+	defer ts.Close()
+
+	s.mu.RLock()
+	h0 := s.chain.Height()
+	s.mu.RUnlock()
+
+	code, _ := do(t, ts, http.MethodPost, "/api/v1/blocks", AppendBlockRequest{Author: 1, Data: "should roll back"})
+	if code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 on persist failure, got %d", code)
+	}
+
+	s.mu.RLock()
+	h1 := s.chain.Height()
+	valid := s.chain.Validate()
+	s.mu.RUnlock()
+
+	if h1 != h0 {
+		t.Fatalf("expected height rolled back to %d, got %d", h0, h1)
+	}
+	if !valid {
+		t.Fatal("chain should remain valid after rollback")
+	}
+}
+
 func TestConcurrentAccessNoRace(t *testing.T) {
 	s, ts := newIntegrationServer(t)
 	defer ts.Close()

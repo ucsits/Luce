@@ -19,7 +19,11 @@ var rootCmd = &cobra.Command{
 	Short: "luce is a blockchain organizational transparency application",
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
-		chain := fsmgr.LoadOrCreate(dataDir)
+		chain, err := fsmgr.LoadOrCreate(dataDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 
 		cfg := rpc.DefaultConfig()
 		cfg.Port = port

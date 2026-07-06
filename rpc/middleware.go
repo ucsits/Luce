@@ -25,8 +25,6 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 		c.Logger().Error(err)
 	}
 
-	// Don't attempt a second write if the handler already started committing
-	// a response (mirrors echo.DefaultHTTPErrorHandler).
 	if c.Response().Committed {
 		return
 	}

@@ -43,15 +43,13 @@ func (s *Server) AppendBlock(c echo.Context) error {
 	}
 	s.mu.Lock()
 	block := s.chain.AppendBlock(req.Author, req.Data)
-	// Persist on every append so blocks are not lost on a non-graceful exit.
-	// TODO: this rewrites the whole chain per append; replace with an
-	// incremental single-block write (fsmgr scope) for large chains.
-	dumpErr := fsmgr.Dump(s.config.DataDir, *s.chain)
-	s.mu.Unlock()
-	if dumpErr != nil {
-		c.Logger().Errorf("persisting block: %v", dumpErr)
+	if err := fsmgr.PersistBlock(s.config.DataDir, block); err != nil {
+		s.chain.TruncateLast()
+		s.mu.Unlock()
+		c.Logger().Errorf("persisting block: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to persist block")
 	}
+	s.mu.Unlock()
 	return c.JSON(http.StatusCreated, NewBlockResponse(block))
 }
 

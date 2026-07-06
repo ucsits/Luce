@@ -8,20 +8,22 @@ import (
 
 func TestLoadOrCreate_CreatesGenesisWhenAbsent(t *testing.T) {
 	dir := t.TempDir()
-	chain := LoadOrCreate(dir)
+	chain, err := LoadOrCreate(dir)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
 	if chain.Height() != 1 {
 		t.Fatalf("expected genesis height 1, got %d", chain.Height())
 	}
 }
 
-// TestLoadOrCreate_LoadsExistingFromDir guards against a regression where the
-// existence check stats CWD (".luce") instead of filepath.Join(dir, ".luce"):
-// without the dir-aware stat, a non-CWD data dir would be silently re-genesis'd
-// on restart, discarding the persisted chain.
 func TestLoadOrCreate_LoadsExistingFromDir(t *testing.T) {
 	dir := t.TempDir()
 
-	first := LoadOrCreate(dir)
+	first, err := LoadOrCreate(dir)
+	if err != nil {
+		t.Fatalf("first run: %v", err)
+	}
 	if first.Height() != 1 {
 		t.Fatalf("first run: expected genesis height 1, got %d", first.Height())
 	}
@@ -30,9 +32,12 @@ func TestLoadOrCreate_LoadsExistingFromDir(t *testing.T) {
 		t.Fatalf("dump: %v", err)
 	}
 
-	second := LoadOrCreate(dir)
+	second, err := LoadOrCreate(dir)
+	if err != nil {
+		t.Fatalf("second run: %v", err)
+	}
 	if second.Height() != 2 {
-		t.Fatalf("second run: expected loaded height 2, got %d (stat used wrong path?)", second.Height())
+		t.Fatalf("second run: expected loaded height 2, got %d", second.Height())
 	}
 	if !second.Validate() {
 		t.Fatal("loaded chain should be valid")

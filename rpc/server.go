@@ -15,7 +15,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/ucsits/Luce/blockchain"
-	"github.com/ucsits/Luce/fsmgr"
 )
 
 type Server struct {
@@ -66,21 +65,12 @@ func (s *Server) Start() error {
 	if err := s.echo.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-	// Wait for the signal-triggered Shutdown to finish persisting the chain
-	// before reporting success or failure to the caller.
 	return <-shutdownErr
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	// Stop accepting new requests and let in-flight ones drain first, so we
-	// persist a quiesced chain instead of racing with concurrent appends.
 	if err := s.echo.Shutdown(ctx); err != nil {
 		return fmt.Errorf("stopping http server: %w", err)
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := fsmgr.Dump(s.config.DataDir, *s.chain); err != nil {
-		return fmt.Errorf("dumping blockchain: %w", err)
 	}
 	return nil
 }
