@@ -1,13 +1,20 @@
 package blockchain
 
+import "fmt"
+
 type Blockchain struct {
 	blocks []*Block
 }
 
-func (c Blockchain) AppendBlock(author uint64, data []rune) Block {
+func (c *Blockchain) PrependBlock(b *Block) {
+	c.blocks = append([]*Block{b}, c.blocks...)
+}
+
+func (c *Blockchain) AppendBlock(author uint64, data string) Block {
 	height := c.Height()
 	prevBlock := c.GetBlock(height - 2)
 	b := NewBlock(height, prevBlock.Hash(), author, data)
+	c.blocks = append(c.blocks, b)
 	return *b
 }
 
@@ -31,4 +38,12 @@ func (c Blockchain) Validate() bool {
 	}
 
 	return true
+}
+
+func (c Blockchain) Encode() []byte {
+	height := c.Height()
+	lastBlock := c.GetBlock(height - 1)
+	data := fmt.Sprintf("%dꭣ%x", height, lastBlock.Hash())
+
+	return []byte(data)
 }
