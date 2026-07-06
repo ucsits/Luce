@@ -1,7 +1,9 @@
 package blockchain
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"fmt"
 	"testing"
 )
 
@@ -22,7 +24,6 @@ func TestHeightAfterOperations(t *testing.T) {
 	}
 }
 
-// TestAppendBlockToEmptyChain verifies appending to a brand-new chain.
 func TestAppendBlockToEmptyChain(t *testing.T) {
 	c := Blockchain{}
 	b := c.AppendBlock(1, "first block after genesis")
@@ -65,7 +66,6 @@ func TestAppendBlockToChainWithOneBlock(t *testing.T) {
 	}
 }
 
-// TestAppendBlockHashLinking verifies hash chain integrity across multiple appends.
 func TestAppendBlockHashLinking(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -245,8 +245,7 @@ func TestValidateTamperedData(t *testing.T) {
 	}
 }
 
-// TestEncodeEmptyChain exposes that Encode() panics on an empty chain
-// because it calls GetBlock(height - 1) where height = 0, underflowing uint64.
+// Encode() panics on an empty chain because GetBlock(height - 1) underflows uint64 when height = 0.
 func TestEncodeEmptyChain(t *testing.T) {
 	c := Blockchain{}
 
@@ -263,11 +262,25 @@ func TestEncodeSingleBlockChain(t *testing.T) {
 	c.AppendBlock(0, "genesis")
 
 	encoded := c.Encode()
-	str := string(encoded)
-	t.Logf("Encode() single-block chain: %q", str)
 
 	if len(encoded) == 0 {
-		t.Error("Encode() returned empty output for single-block chain")
+		t.Fatal("Encode() returned empty output for single-block chain")
+	}
+
+	parts := bytes.SplitN(encoded, []byte("ꭣ"), 2)
+	if len(parts) != 2 {
+		t.Fatalf("Encode() output missing ꭣ delimiter: %q", string(encoded))
+	}
+
+	heightStr := string(parts[0])
+	expectedHeight := c.Height()
+	if heightStr != fmt.Sprintf("%d", expectedHeight) {
+		t.Errorf("Encode() height = %q, want %d", heightStr, expectedHeight)
+	}
+
+	expectedHash := fmt.Sprintf("%x", c.GetBlock(expectedHeight-1).Hash())
+	if string(parts[1]) != expectedHash {
+		t.Errorf("Encode() hash = %q, want %q", string(parts[1]), expectedHash)
 	}
 }
 
@@ -284,10 +297,24 @@ func TestEncodeMultiBlockChain(t *testing.T) {
 	c.AppendBlock(2, "block 2")
 
 	encoded := c.Encode()
-	str := string(encoded)
-	t.Logf("Encode() multi-block chain: %q", str)
 
 	if len(encoded) == 0 {
-		t.Error("Encode() returned empty output for multi-block chain")
+		t.Fatal("Encode() returned empty output for multi-block chain")
+	}
+
+	parts := bytes.SplitN(encoded, []byte("ꭣ"), 2)
+	if len(parts) != 2 {
+		t.Fatalf("Encode() output missing ꭣ delimiter: %q", string(encoded))
+	}
+
+	heightStr := string(parts[0])
+	expectedHeight := c.Height()
+	if heightStr != fmt.Sprintf("%d", expectedHeight) {
+		t.Errorf("Encode() height = %q, want %d", heightStr, expectedHeight)
+	}
+
+	expectedHash := fmt.Sprintf("%x", c.GetBlock(expectedHeight-1).Hash())
+	if string(parts[1]) != expectedHash {
+		t.Errorf("Encode() hash = %q, want %q", string(parts[1]), expectedHash)
 	}
 }

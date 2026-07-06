@@ -95,14 +95,6 @@ func TestFormat(t *testing.T) {
 	}
 }
 
-func TestFormatWithDelimiterInData(t *testing.T) {
-	b := NewBlock(0, [32]byte{0}, 0, "dataꭣwithꭣdelimiter")
-	b.Timestamp = 0
-	formatted := b.Format()
-	t.Logf("Format with delimiter in data: %q", string(formatted))
-	_ = formatted
-}
-
 func TestEncode(t *testing.T) {
 	b := NewBlock(0, [32]byte{0}, 7, "encoded data")
 	b.Timestamp = 500
