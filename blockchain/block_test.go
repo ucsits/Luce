@@ -39,7 +39,7 @@ func TestHash(t *testing.T) {
 	b1.Timestamp = 1000
 
 	b2 := NewBlock(0, [32]byte{0}, 0, "test data")
-	b2.Timestamp = 1000
+	b2.SetTimestamp(1000)
 
 	if b1.Hash() != b2.Hash() {
 		t.Error("Hash() is not deterministic — same fields produce different hashes")
@@ -73,7 +73,7 @@ func TestHashChangesWithDifferentFields(t *testing.T) {
 
 func TestHashKnownAnswer(t *testing.T) {
 	b := NewBlock(0, [32]byte{0}, 0, "known")
-	b.Timestamp = 0
+	b.SetTimestamp(0)
 
 	expected := sha256.Sum256(b.Format())
 	if b.Hash() != expected {
@@ -83,7 +83,7 @@ func TestHashKnownAnswer(t *testing.T) {
 
 func TestFormat(t *testing.T) {
 	b := NewBlock(1, [32]byte{0}, 42, "hello")
-	b.Timestamp = 1000
+	b.SetTimestamp(1000)
 	formatted := b.Format()
 
 	if !bytes.Contains(formatted, []byte("ꭣ")) {
@@ -97,7 +97,7 @@ func TestFormat(t *testing.T) {
 
 func TestEncode(t *testing.T) {
 	b := NewBlock(0, [32]byte{0}, 7, "encoded data")
-	b.Timestamp = 500
+	b.SetTimestamp(500)
 	encoded := b.Encode()
 	str := string(encoded)
 
@@ -114,7 +114,7 @@ func TestEncode(t *testing.T) {
 
 func TestFormatVsEncode(t *testing.T) {
 	b := NewBlock(0, [32]byte{0}, 1, "test")
-	b.Timestamp = 100
+	b.SetTimestamp(100)
 
 	formatted := string(b.Format())
 	encoded := string(b.Encode())
@@ -130,7 +130,7 @@ func TestFormatVsEncode(t *testing.T) {
 
 func TestNewBlockFromFileRoundTrip(t *testing.T) {
 	b := NewBlock(0, [32]byte{0}, 7, "multi word test data")
-	b.Timestamp = 500
+	b.SetTimestamp(500)
 	encoded := b.Encode()
 
 	tmpFile := filepath.Join(t.TempDir(), "block")

@@ -17,16 +17,29 @@ type Block struct {
 	Timestamp     uint64
 	PrevBlockHash [32]byte
 	Data          string
+
+	// storedHash is the block's hash at creation time, used for self-consistency
+	// validation. Set by NewBlock and NewBlockFromFile.
+	storedHash [32]byte
 }
 
 func NewBlock(height uint64, prevBlockHash [32]byte, author uint64, data string) *Block {
-	return &Block{
+	b := &Block{
 		Height:        height,
 		Author:        author,
 		Timestamp:     uint64(time.Now().Unix()),
 		PrevBlockHash: prevBlockHash,
 		Data:          data,
 	}
+	b.storedHash = b.Hash()
+	return b
+}
+
+// SetTimestamp overrides the block's timestamp and recomputes its stored hash.
+// Use this instead of directly assigning to Timestamp to keep the hash consistent.
+func (b *Block) SetTimestamp(timestamp uint64) {
+	b.Timestamp = timestamp
+	b.storedHash = b.Hash()
 }
 
 func (b Block) Format() []byte {
@@ -88,7 +101,15 @@ func NewBlockFromFile(filename string) (*Block, error) {
 	blockData := strings.Join(parts[5:], "ꭣ")
 
 	b := NewBlock(height, prevBlockHash, author, blockData)
-	b.Timestamp = timestamp
+	b.SetTimestamp(timestamp)
+
+	// Verify the reconstructed block's hash matches the stored hash.
+	// This detects file corruption or tampering.
+	if b.Hash() != hash {
+		return nil, fmt.Errorf(
+			"block hash mismatch: stored %x, computed %x", hash, b.Hash(),
+		)
+	}
 
 	return b, nil
 }

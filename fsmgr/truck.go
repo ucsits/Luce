@@ -52,14 +52,26 @@ func Dump(basepath string, c blockchain.Blockchain) error {
 	if err := mkluce(basepath); err != nil {
 		return err
 	}
+	// Track written block files so we can clean up on failure.
+	// Dump is called during genesis creation (single block), but this handles
+	// multi-block chains robustly too.
+	var writtenBlocks []string
 	for i := uint64(0); i < c.Height(); i++ {
 		block := c.GetBlock(i)
 		blockHash := fmt.Sprintf("%x", block.Hash())
-		if err := writeFileAtomic(filepath.Join(basepath, ".luce", blockHash), block.Encode()); err != nil {
+		blockPath := filepath.Join(basepath, ".luce", blockHash)
+		if err := writeFileAtomic(blockPath, block.Encode()); err != nil {
+			for _, hash := range writtenBlocks {
+				os.Remove(filepath.Join(basepath, ".luce", hash))
+			}
 			return fmt.Errorf("writing block %d: %w", i, err)
 		}
+		writtenBlocks = append(writtenBlocks, blockHash)
 	}
 	if err := writeFileAtomic(filepath.Join(basepath, ".luce", "metadata"), []byte(encodedMetadata)); err != nil {
+		for _, hash := range writtenBlocks {
+			os.Remove(filepath.Join(basepath, ".luce", hash))
+		}
 		return fmt.Errorf("writing metadata: %w", err)
 	}
 	return nil

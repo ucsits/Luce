@@ -47,7 +47,13 @@ func (c Blockchain) Validate() bool {
 
 		if i != block.Height {
 			return false
-		} else if block.Height > 0 && block.PrevBlockHash != c.GetBlock(i-1).Hash() {
+		}
+		// Self-hash consistency check — detects in-memory tampering of any block,
+		// including the last block (which has no subsequent block to validate it).
+		if block.Hash() != block.storedHash {
+			return false
+		}
+		if block.Height > 0 && block.PrevBlockHash != c.GetBlock(i-1).Hash() {
 			return false
 		}
 	}

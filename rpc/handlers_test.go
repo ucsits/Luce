@@ -25,7 +25,7 @@ func fsmgrGenesis(chain *blockchain.Blockchain) {
 		0, [32]byte{0}, 0,
 		"genesis",
 	)
-	block.Timestamp = 1783300009
+	block.SetTimestamp(1783300009)
 	chain.PrependBlock(block)
 }
 

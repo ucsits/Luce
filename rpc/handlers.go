@@ -10,12 +10,12 @@ import (
 
 func (s *Server) ListBlocks(c echo.Context) error {
 	s.mu.RLock()
+	defer s.mu.RUnlock()
 	height := s.chain.Height()
 	blocks := make([]BlockResponse, 0, height)
 	for i := uint64(0); i < height; i++ {
 		blocks = append(blocks, NewBlockResponse(s.chain.GetBlock(i)))
 	}
-	s.mu.RUnlock()
 	return c.JSON(http.StatusOK, blocks)
 }
 
@@ -42,14 +42,14 @@ func (s *Server) AppendBlock(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "data must not be empty")
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	block := s.chain.AppendBlock(req.Author, req.Data)
 	if err := fsmgr.PersistBlock(s.config.DataDir, block); err != nil {
 		s.chain.TruncateLast()
-		s.mu.Unlock()
 		c.Logger().Errorf("persisting block: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to persist block")
 	}
-	s.mu.Unlock()
 	return c.JSON(http.StatusCreated, NewBlockResponse(block))
 }
 
