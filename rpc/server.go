@@ -30,6 +30,11 @@ func NewServer(cfg Config, chain *blockchain.Blockchain) *Server {
 	e.Server.ReadTimeout = cfg.ReadTimeout
 	e.Server.WriteTimeout = cfg.WriteTimeout
 	e.Use(middleware.Recover())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{"*"},
+		AllowHeaders: []string{"*"},
+	}))
 	e.HTTPErrorHandler = customHTTPErrorHandler
 
 	s := &Server{
