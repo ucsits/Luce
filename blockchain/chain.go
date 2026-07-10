@@ -41,6 +41,24 @@ func (c Blockchain) Height() uint64 {
 	return uint64(len(c.blocks))
 }
 
+// GetBlockByHash finds a block by its 32-byte hash. Returns nil and false if not found.
+func (c Blockchain) GetBlockByHash(hash [32]byte) (*Block, bool) {
+	for _, block := range c.blocks {
+		if block.storedHash == hash {
+			return block, true
+		}
+	}
+	return nil, false
+}
+
+// LastBlock returns the most recent block. Returns nil and false if the chain is empty.
+func (c Blockchain) LastBlock() (*Block, bool) {
+	if len(c.blocks) == 0 {
+		return nil, false
+	}
+	return c.blocks[len(c.blocks)-1], true
+}
+
 func (c Blockchain) Validate() bool {
 	for i := uint64(0); i < c.Height(); i++ {
 		block := c.GetBlock(i)

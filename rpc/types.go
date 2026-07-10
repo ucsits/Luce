@@ -20,6 +20,25 @@ type AppendBlockRequest struct {
 	Data   string `json:"data"`
 }
 
+type PaginatedBlocksResponse struct {
+	Data       []BlockResponse `json:"data"`
+	Pagination PaginationMeta  `json:"pagination"`
+}
+
+type PaginationMeta struct {
+	Page       int    `json:"page"`
+	Limit      int    `json:"limit"`
+	Total      uint64 `json:"total"`
+	TotalPages int    `json:"total_pages"`
+}
+
+type ChainSummaryResponse struct {
+	Height        uint64        `json:"height"`
+	Blocks        uint64        `json:"blocks"`
+	BestBlockHash string        `json:"best_block_hash"`
+	LastBlock     *BlockResponse `json:"last_block,omitempty"`
+}
+
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
