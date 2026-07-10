@@ -26,6 +26,11 @@ func (s *Server) ListBlocks(c echo.Context) error {
 		limit = 100
 	}
 
+	desc, err := strconv.ParseBool(c.QueryParam("desc"))
+	if err != nil {
+		desc = false
+	}
+
 	height := s.chain.Height()
 	total := height
 
@@ -48,8 +53,17 @@ func (s *Server) ListBlocks(c echo.Context) error {
 	}
 
 	blocks := make([]BlockResponse, 0, end-start)
-	for i := start; i < end; i++ {
-		blocks = append(blocks, NewBlockResponse(s.chain.GetBlock(i)))
+	if desc {
+		// Reverse chronological order (newest first) — suitable for block explorers
+		for j := uint64(0); j < end-start; j++ {
+			idx := height - 1 - start - j
+			blocks = append(blocks, NewBlockResponse(s.chain.GetBlock(idx)))
+		}
+	} else {
+		// Chronological order (oldest first) — default
+		for i := start; i < end; i++ {
+			blocks = append(blocks, NewBlockResponse(s.chain.GetBlock(i)))
+		}
 	}
 
 	return c.JSON(http.StatusOK, PaginatedBlocksResponse{

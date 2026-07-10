@@ -127,6 +127,84 @@ func TestListBlocks_Pagination(t *testing.T) {
 	}
 }
 
+func TestListBlocks_Desc(t *testing.T) {
+	s := newTestServer(t)
+	// Append more blocks
+	for i := 0; i < 5; i++ {
+		if err := fsmgr.PersistBlock(s.config.DataDir, s.chain.AppendBlock(uint64(i+1), "data")); err != nil {
+			t.Fatalf("persisting block: %v", err)
+		}
+	}
+
+	// Page 1, limit 2, desc=true — newest first
+	rec := request(t, s, http.MethodGet, "/api/v1/blocks?page=1&limit=2&desc=true", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp PaginatedBlocksResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshalling: %v", err)
+	}
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 blocks on page 1, got %d", len(resp.Data))
+	}
+	if resp.Pagination.Total != 6 {
+		t.Fatalf("expected total 6, got %d", resp.Pagination.Total)
+	}
+	if resp.Pagination.TotalPages != 3 {
+		t.Fatalf("expected 3 pages, got %d", resp.Pagination.TotalPages)
+	}
+	// Verify first block is the newest (height 5)
+	if resp.Data[0].Height != 5 {
+		t.Fatalf("expected first block height 5 (newest), got %d", resp.Data[0].Height)
+	}
+	// Verify second block is height 4
+	if resp.Data[1].Height != 4 {
+		t.Fatalf("expected second block height 4, got %d", resp.Data[1].Height)
+	}
+
+	// Page 2, limit 2, desc=true
+	rec = request(t, s, http.MethodGet, "/api/v1/blocks?page=2&limit=2&desc=true", nil)
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshalling: %v", err)
+	}
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 blocks on page 2, got %d", len(resp.Data))
+	}
+	// Page 2 descending: blocks at heights 3 and 2
+	if resp.Data[0].Height != 3 {
+		t.Fatalf("expected first block height 3 on page 2, got %d", resp.Data[0].Height)
+	}
+	if resp.Data[1].Height != 2 {
+		t.Fatalf("expected second block height 2 on page 2, got %d", resp.Data[1].Height)
+	}
+
+	// Page 3, limit 2, desc=true — oldest blocks
+	rec = request(t, s, http.MethodGet, "/api/v1/blocks?page=3&limit=2&desc=true", nil)
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshalling: %v", err)
+	}
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 blocks on page 3, got %d", len(resp.Data))
+	}
+	// Page 3 descending: blocks at heights 1 and 0
+	if resp.Data[0].Height != 1 {
+		t.Fatalf("expected first block height 1 on page 3, got %d", resp.Data[0].Height)
+	}
+	if resp.Data[1].Height != 0 {
+		t.Fatalf("expected second block height 0 (genesis) on page 3, got %d", resp.Data[1].Height)
+	}
+
+	// desc=false should match the default ascending behaviour
+	rec = request(t, s, http.MethodGet, "/api/v1/blocks?page=1&limit=2&desc=false", nil)
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshalling: %v", err)
+	}
+	if resp.Data[0].Height != 0 {
+		t.Fatalf("expected first block height 0 with desc=false, got %d", resp.Data[0].Height)
+	}
+}
+
 func TestGetBlockByHash(t *testing.T) {
 	s := newTestServer(t)
 	// Fetch the known block and extract its hash
