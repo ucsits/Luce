@@ -41,7 +41,7 @@ func NewServer(cfg Config, chain *blockchain.Blockchain) *Server {
 	apiGroup := e.Group("/api/v1")
 	apiGroup.GET("/blocks", s.ListBlocks)
 	apiGroup.GET("/blocks/:height", s.GetBlock)
-	apiGroup.POST("/blocks", s.AppendBlock)
+	apiGroup.POST("/blocks", s.AppendBlock, localhostOnly)
 	apiGroup.GET("/chain/validate", s.ValidateChain)
 	apiGroup.GET("/chain/height", s.GetHeight)
 

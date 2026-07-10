@@ -38,6 +38,7 @@ func request(t *testing.T, s *Server, method, path string, body interface{}) *ht
 		}
 	}
 	req := httptest.NewRequest(method, path, &buf)
+	req.RemoteAddr = "127.0.0.1:12345"
 	if body != nil {
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	}
@@ -121,6 +122,7 @@ func TestAppendBlock_EmptyData(t *testing.T) {
 func TestAppendBlock_InvalidJSON(t *testing.T) {
 	s := newTestServer(t)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/blocks", bytes.NewBufferString("{not json"))
+	req.RemoteAddr = "127.0.0.1:12345"
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	s.echo.ServeHTTP(rec, req)
