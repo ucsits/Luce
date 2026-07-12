@@ -36,8 +36,8 @@ func (s *Server) ListBlocks(c echo.Context) error {
 
 	start := uint64((page - 1) * limit)
 	if start >= height {
-		return c.JSON(http.StatusOK, PaginatedBlocksResponse{
-			Data: []BlockResponse{},
+		return c.JSON(http.StatusOK, PaginatedLightweightBlocksResponse{
+			Data: []LightweightBlockResponse{},
 			Pagination: PaginationMeta{
 				Page:       page,
 				Limit:      limit,
@@ -52,21 +52,21 @@ func (s *Server) ListBlocks(c echo.Context) error {
 		end = height
 	}
 
-	blocks := make([]BlockResponse, 0, end-start)
+	blocks := make([]LightweightBlockResponse, 0, end-start)
 	if desc {
 		// Reverse chronological order (newest first) — suitable for block explorers
 		for j := uint64(0); j < end-start; j++ {
 			idx := height - 1 - start - j
-			blocks = append(blocks, NewBlockResponse(s.chain.GetBlock(idx)))
+			blocks = append(blocks, NewLightweightBlockResponse(s.chain.GetBlock(idx)))
 		}
 	} else {
 		// Chronological order (oldest first) — default
 		for i := start; i < end; i++ {
-			blocks = append(blocks, NewBlockResponse(s.chain.GetBlock(i)))
+			blocks = append(blocks, NewLightweightBlockResponse(s.chain.GetBlock(i)))
 		}
 	}
 
-	return c.JSON(http.StatusOK, PaginatedBlocksResponse{
+	return c.JSON(http.StatusOK, PaginatedLightweightBlocksResponse{
 		Data: blocks,
 		Pagination: PaginationMeta{
 			Page:       page,

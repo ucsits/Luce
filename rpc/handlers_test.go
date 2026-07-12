@@ -381,3 +381,70 @@ func TestGetHeight(t *testing.T) {
 		t.Fatalf("expected height 1, got %d", resp["height"])
 	}
 }
+
+func TestListBlocks_DocumentContentStripped(t *testing.T) {
+	s := newTestServer(t)
+
+	// Create a document-type block with large content
+	docData := `{"type":"document","v":1,"docId":"test-doc-id","title":"Test Document","content":"this is a large base64 encoded content that should be stripped","author":"123456","mimeType":"application/pdf"}`
+	if err := fsmgr.PersistBlock(s.config.DataDir, s.chain.AppendBlock(1, docData)); err != nil {
+		panic(err)
+	}
+
+	// Create a task-type block (should NOT strip content)
+	taskData := `{"type":"task","v":1,"taskId":"task-123","title":"Test Task","description":"Task description"}`
+	if err := fsmgr.PersistBlock(s.config.DataDir, s.chain.AppendBlock(1, taskData)); err != nil {
+		panic(err)
+	}
+
+	rec := request(t, s, http.MethodGet, "/api/v1/blocks?limit=10", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp PaginatedLightweightBlocksResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshalling: %v", err)
+	}
+
+	if len(resp.Data) != 3 {
+		t.Fatalf("expected 3 blocks, got %d", len(resp.Data))
+	}
+
+	// Block 1 (genesis) - plain text, no stripping needed
+	if resp.Data[0].Height != 0 {
+		t.Fatalf("expected height 0, got %d", resp.Data[0].Height)
+	}
+
+	// Block 1 (document) - content should be stripped
+	docBlock := resp.Data[1]
+	if docBlock.Height != 1 {
+		t.Fatalf("expected height 1, got %d", docBlock.Height)
+	}
+	var docParsed map[string]interface{}
+	if err := json.Unmarshal([]byte(docBlock.Data), &docParsed); err != nil {
+		t.Fatalf("parsing document data: %v", err)
+	}
+	if _, hasContent := docParsed["content"]; hasContent {
+		t.Fatal("expected document content to be stripped from lightweight response")
+	}
+	if docParsed["type"] != "document" {
+		t.Fatalf("expected type document, got %v", docParsed["type"])
+	}
+	if docParsed["title"] != "Test Document" {
+		t.Fatalf("expected title Test Document, got %v", docParsed["title"])
+	}
+
+	// Block 2 (task) - content should NOT be stripped
+	taskBlock := resp.Data[2]
+	if taskBlock.Height != 2 {
+		t.Fatalf("expected height 2, got %d", taskBlock.Height)
+	}
+	var taskParsed map[string]interface{}
+	if err := json.Unmarshal([]byte(taskBlock.Data), &taskParsed); err != nil {
+		t.Fatalf("parsing task data: %v", err)
+	}
+	if desc, ok := taskParsed["description"]; !ok || desc != "Task description" {
+		t.Fatalf("expected task description to be preserved, got %v", desc)
+	}
+}
