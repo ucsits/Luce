@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -110,6 +111,71 @@ func (s *Server) ChainSummary(c echo.Context) error {
 		blockResp := NewBlockResponse(*last)
 		resp.BestBlockHash = blockResp.Hash
 		resp.LastBlock = &blockResp
+	}
+
+	// Compute summary statistics
+	authors := make(map[uint64]bool)
+	tasks := make(map[string]uint64)           // taskId -> task block timestamp (deadline)
+	doneTasks := make(map[string]uint64)        // taskId -> task_done block timestamp
+	cancelledTasks := make(map[string]bool)      // taskId -> cancelled
+
+	for i := uint64(0); i < height; i++ {
+		block := s.chain.GetBlock(i)
+
+		// Track unique authors (skip genesis author 0)
+		if block.Author != 0 {
+			authors[block.Author] = true
+		}
+
+		// Parse JSON data for typed blocks
+		var parsed map[string]interface{}
+		if err := json.Unmarshal([]byte(block.Data), &parsed); err != nil {
+			continue
+		}
+
+		blockType, _ := parsed["type"].(string)
+
+		switch blockType {
+		case "task":
+			resp.TaskCount++
+			var task TaskBlock
+			if err := json.Unmarshal([]byte(block.Data), &task); err == nil {
+				tasks[task.TaskID] = task.Deadline
+			}
+
+		case "task_done":
+			resp.TaskDoneCount++
+			var taskDone TaskDoneBlock
+			if err := json.Unmarshal([]byte(block.Data), &taskDone); err == nil {
+				doneTasks[taskDone.TaskID] = block.Timestamp
+			}
+
+		case "task_cancel":
+			resp.TaskCancelledCount++
+			var taskCancel TaskCancelBlock
+			if err := json.Unmarshal([]byte(block.Data), &taskCancel); err == nil {
+				cancelledTasks[taskCancel.TaskID] = true
+			}
+
+		case "document":
+			resp.DocumentCount++
+
+		case "rep":
+			resp.RepCount++
+		}
+	}
+
+	resp.AuthorCount = len(authors)
+
+	// Count tasks done past deadline (not cancelled)
+	for taskID, doneTimestamp := range doneTasks {
+		if cancelledTasks[taskID] {
+			continue
+		}
+		deadline, exists := tasks[taskID]
+		if exists && doneTimestamp > deadline {
+			resp.TaskDonePastDeadline++
+		}
 	}
 
 	return c.JSON(http.StatusOK, resp)

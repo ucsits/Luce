@@ -283,6 +283,96 @@ func TestChainSummary(t *testing.T) {
 	}
 }
 
+func TestChainSummary_WithBlocks(t *testing.T) {
+	s := newTestServer(t)
+
+	// Create a task
+	taskData := `{"type":"task","v":1,"taskId":"task-1","title":"Test Task","deadline":1000}`
+	if err := fsmgr.PersistBlock(s.config.DataDir, s.chain.AppendBlock(1, taskData)); err != nil {
+		panic(err)
+	}
+
+	// Create a document
+	docData := `{"type":"document","v":1,"docId":"doc-1","title":"Test Doc"}`
+	if err := fsmgr.PersistBlock(s.config.DataDir, s.chain.AppendBlock(1, docData)); err != nil {
+		panic(err)
+	}
+
+	// Create a rep
+	repData := `{"type":"rep","v":1,"toUser":"user1","fromUser":"user2","amount":1}`
+	if err := fsmgr.PersistBlock(s.config.DataDir, s.chain.AppendBlock(2, repData)); err != nil {
+		panic(err)
+	}
+
+	// Create a task done (past deadline)
+	doneData := `{"type":"task_done","v":1,"taskId":"task-1"}`
+	if err := fsmgr.PersistBlock(s.config.DataDir, s.chain.AppendBlock(1, doneData)); err != nil {
+		panic(err)
+	}
+
+	rec := request(t, s, http.MethodGet, "/api/v1/chain/summary", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var summary ChainSummaryResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &summary); err != nil {
+		t.Fatalf("unmarshalling: %v", err)
+	}
+
+	if summary.Height != 5 {
+		t.Fatalf("expected height 5, got %d", summary.Height)
+	}
+	if summary.AuthorCount != 2 {
+		t.Fatalf("expected author_count 2, got %d", summary.AuthorCount)
+	}
+	if summary.DocumentCount != 1 {
+		t.Fatalf("expected document_count 1, got %d", summary.DocumentCount)
+	}
+	if summary.TaskCount != 1 {
+		t.Fatalf("expected task_count 1, got %d", summary.TaskCount)
+	}
+	if summary.TaskDoneCount != 1 {
+		t.Fatalf("expected task_done_count 1, got %d", summary.TaskDoneCount)
+	}
+	if summary.RepCount != 1 {
+		t.Fatalf("expected rep_count 1, got %d", summary.RepCount)
+	}
+}
+
+func TestChainSummary_TaskCancelled(t *testing.T) {
+	s := newTestServer(t)
+
+	// Create a task
+	taskData := `{"type":"task","v":1,"taskId":"task-1","title":"Test Task","deadline":1000}`
+	if err := fsmgr.PersistBlock(s.config.DataDir, s.chain.AppendBlock(1, taskData)); err != nil {
+		panic(err)
+	}
+
+	// Cancel the task
+	cancelData := `{"type":"task_cancel","v":1,"taskId":"task-1"}`
+	if err := fsmgr.PersistBlock(s.config.DataDir, s.chain.AppendBlock(1, cancelData)); err != nil {
+		panic(err)
+	}
+
+	rec := request(t, s, http.MethodGet, "/api/v1/chain/summary", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var summary ChainSummaryResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &summary); err != nil {
+		t.Fatalf("unmarshalling: %v", err)
+	}
+
+	if summary.TaskCount != 1 {
+		t.Fatalf("expected task_count 1, got %d", summary.TaskCount)
+	}
+	if summary.TaskCancelledCount != 1 {
+		t.Fatalf("expected task_cancelled_count 1, got %d", summary.TaskCancelledCount)
+	}
+}
+
 func TestGetBlock_Valid(t *testing.T) {
 	s := newTestServer(t)
 	rec := request(t, s, http.MethodGet, "/api/v1/blocks/0", nil)

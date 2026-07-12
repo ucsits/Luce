@@ -51,14 +51,56 @@ type PaginationMeta struct {
 }
 
 type ChainSummaryResponse struct {
-	Height        uint64        `json:"height"`
-	Blocks        uint64        `json:"blocks"`
-	BestBlockHash string        `json:"best_block_hash"`
-	LastBlock     *BlockResponse `json:"last_block,omitempty"`
+	Height               uint64         `json:"height"`
+	Blocks               uint64         `json:"blocks"`
+	BestBlockHash        string         `json:"best_block_hash"`
+	LastBlock            *BlockResponse `json:"last_block,omitempty"`
+	AuthorCount          int            `json:"author_count"`
+	DocumentCount        int            `json:"document_count"`
+	TaskCount            int            `json:"task_count"`
+	TaskDoneCount        int            `json:"task_done_count"`
+	TaskCancelledCount   int            `json:"task_cancelled_count"`
+	TaskDonePastDeadline int            `json:"task_done_past_deadline_count"`
+	RepCount             int            `json:"rep_count"`
 }
 
 type ErrorResponse struct {
 	Error string `json:"error"`
+}
+
+// TaskBlock represents a task creation block.
+type TaskBlock struct {
+	Type       string `json:"type"`
+	V          int    `json:"v"`
+	TaskID     string `json:"taskId"`
+	Title      string `json:"title"`
+	Deadline   uint64 `json:"deadline"`
+}
+
+// TaskDoneBlock represents a task completion block.
+type TaskDoneBlock struct {
+	Type  string `json:"type"`
+	V     int    `json:"v"`
+	TaskID string `json:"taskId"`
+}
+
+// TaskCancelBlock represents a task cancellation block.
+type TaskCancelBlock struct {
+	Type  string `json:"type"`
+	V     int    `json:"v"`
+	TaskID string `json:"taskId"`
+}
+
+// DocumentBlock represents a document upload block.
+type DocumentBlock struct {
+	Type string `json:"type"`
+	V    int    `json:"v"`
+}
+
+// RepBlock represents a reputation/reaction block.
+type RepBlock struct {
+	Type string `json:"type"`
+	V    int    `json:"v"`
 }
 
 func NewBlockResponse(b blockchain.Block) BlockResponse {
